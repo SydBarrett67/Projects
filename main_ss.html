@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            background-color: beige;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            padding-left: 20px; 
+        }
+        #player {
+            height: 150px;
+            width: 100px;
+            background-image: url("player.png");
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        #bow {
+            background-image: url("bow.png");
+            background-size: contain;
+            background-repeat: no-repeat;
+            margin-left: 50%;
+            margin-top: 20%;
+            width: 120px;
+            height: 120px;
+        }
+        .target {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-image: url("target.png");
+            background-size: cover;
+            background-repeat: no-repeat;
+            position: absolute;
+        }
+        .enemytype {
+            height: 150px;
+            width: 150px;
+        }
+        .arrow {
+            background-image: url("arrow.png");
+            height: 50px;
+            width: 100px;
+            position: absolute;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        #score-box {
+            min-height: 80px;
+            width: 20%;
+            background-color: rgba(10,10,10,0.5);
+            padding: 15px;
+            border-radius: 25px;
+            position: absolute;
+            top: 10%;
+            color: beige;
+            font-size: 20px;
+        }
+
+        #upgrade-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #4a2c2c;
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 1000;
+            }
+
+            .upgrade-btn {
+            background-color: #7b504f;
+            border: none;
+            color: beige;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            }
+
+            .upgrade-btn span {
+            background: #ad6f6f;
+            border-radius: 50%;
+            padding: 3px 10px;
+            font-size: 14px;
+            font-weight: bold;
+            user-select: none;
+            }
+
+            .upgrade-btn:hover {
+            background-color: #ad6f6f;
+            }
+
+    </style>
+</head>
+<body onload="startGame()">
+    
+    <div id="upgrade-navbar">
+        <button class="upgrade-btn" onclick="upgrade('speed')">
+            (Required <b id="reqSPD"></b>) Arrow Speed <span id="speed-level">1</span>
+        </button>
+        <button class="upgrade-btn" onclick="upgrade('fireRate')">
+            (Required <b id="reqFR"></b>) Fire Rate <span id="fireRate-level">1</span>
+        </button>
+        <button class="upgrade-btn" onclick="upgrade('damage')">
+            (Required <b id="reqDMG"></b>) <span id="damage-level">1</span>
+        </button>
+    </div>
+
+    <div id="score-box">
+        <div>
+            <b>Score:</b> <span id="score">0</span>
+        </div>
+        <div>
+            <b>Lives:</b> <span id="lives">3</span>
+        </div>
+        <div>
+            <b>Gold:</b> <span id="gold">0</span>
+        </div>
+    </div>
+
+    <div id="player">
+        <div id="bow"></div>
+    </div>
+    
+    
+    <script>
+        let level = 1;
+        let score = 0;
+        let lives = 3;
+        let gold = 0;
+        let damage = 30;
+        let requiredGoldDMG = 50;
+        let requiredGoldFR = 50;
+        let requiredGoldSPD = 50;
+        let spawnTimer = Math.max(200, 2000 - (level * 100));
+        let moveSpeed = 0.1 * level;
+        let arrowSpeed = 2;
+        let enemies = [];
+        let arrows = [];
+        let click = false;
+        let cooldownTimer = 500; // in ms
+        let current_cooldown = 0;
+        let lastTimestamp = 0;
+    
+        function spawner() {
+            setInterval(function () {
+                const Y = Math.random() * 80 + 2;
+                const X = 100;
+                const enemyDOM = document.createElement("div");
+                const hp = 100;
+                const enemy = {
+                    posY: Y,
+                    posX: X,
+                    hp: hp,
+                    element: enemyDOM
+                };
+                enemyDOM.setAttribute("class", "target");
+                enemyDOM.style.top = Y + "%";
+                enemyDOM.style.left = X + "%";
+                enemies.push(enemy);
+                document.body.appendChild(enemyDOM);
+            }, spawnTimer);
+        }
+    
+        function animazioni(timestamp) {
+            if (lastTimestamp === 0) lastTimestamp = timestamp;
+            const deltaTime = (timestamp - lastTimestamp);
+            lastTimestamp = timestamp;
+    
+            // Move enemies
+            enemies.forEach((enemy, index) => {
+                enemy.posX -= moveSpeed;
+                if (enemy.posX <= -10) {
+                    lives--;
+                    document.getElementById("lives").innerText = lives;
+                    enemy.element.remove();
+                    enemies.splice(index, 1);
+                } else {
+                    enemy.element.style.left = enemy.posX + "%";
+                }
+            });
+
+            // Move arrows
+            arrows.forEach((arrow, index) => {
+                arrow.posX += arrow.velX;
+                arrow.posY += arrow.velY;
+
+                arrow.velY += 0.015; // gravity acceleration
+                arrow.rot = Math.atan2(arrow.velY, arrow.velX);
+
+                if (arrow.posX >= 105) {
+                    arrow.element.remove();
+                    arrows.splice(index, 1);
+                } 
+                else {
+                    arrow.element.style.left = arrow.posX + "%";
+                    arrow.element.style.top = arrow.posY + "%";
+                    arrow.element.style.transform = "rotate("+arrow.rot+"rad)";
+                }
+            });
+
+            // Check for collisions between arrows and enemies
+            arrows.forEach((arrow, aIndex) => {
+                const arrowRect = arrow.element.getBoundingClientRect();
+
+                enemies.forEach((enemy, eIndex) => {
+                    const enemyRect = enemy.element.getBoundingClientRect();
+
+                    const arrowCenterX = arrowRect.left + arrowRect.width / 2;
+                    const arrowCenterY = arrowRect.top + arrowRect.height / 2;
+
+                    const enemyCenterX = enemyRect.left + enemyRect.width / 2;
+                    const enemyCenterY = enemyRect.top + enemyRect.height / 2;
+
+                    const dx = arrowCenterX - enemyCenterX;
+                    const dy = arrowCenterY - enemyCenterY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // Radius assumption: half of width (assuming square-shaped elements)
+                    const arrowRadius = Math.min(arrowRect.width, arrowRect.height) / 2;
+                    const enemyRadius = Math.min(enemyRect.width, enemyRect.height) / 2;
+
+                    const collision = distance < (arrowRadius + enemyRadius);
+
+                    if (collision) {
+                        // Collision response:
+                        enemy.hp -= damage;
+
+                        // Remove arrow
+                        arrow.element.remove();
+                        arrows.splice(aIndex, 1);
+
+                        enemy.element.style.backgroundImage = 'url("target_hit.png")';
+                        
+                        // Remove enemy if hp <= 0
+                        if (enemy.hp <= 0) {
+                            score += 10;
+                            gold += 10;
+                            document.getElementById("score").innerText = score;
+                            enemy.element.remove();
+                            enemies.splice(eIndex, 1);
+                        }
+                    }
+                });
+            });
+
+            // Handle shooting cooldown
+            if (click && current_cooldown <= 0) {
+                spawnArrow();
+                current_cooldown = cooldownTimer;
+            } else {
+                current_cooldown -= deltaTime;
+            }
+    
+            requestAnimationFrame(animazioni);
+        }
+        
+        function upgrade(choice) {
+            switch (choice) {
+                case 'speed':
+                    if (gold>=requiredGoldSPD) {
+                        arrowSpeed *= 1.2;
+                        gold -= requiredGoldSPD
+                        requiredGoldSPD *= 1.1
+                    }
+                    break
+                    
+                case 'fireRate':
+                    if (gold>=requiredGoldFR) {
+                        cooldownTimer *= 0.85;
+                        gold -= requiredGoldFR
+                        requiredGoldFR *= 1.6
+                    }
+                    break
+
+                case 'damage':
+                    if (gold>=requiredGoldDMG) {
+                        damage *= 1.2;
+                        gold -= requiredGoldDMG
+                        requiredGoldDMG *= 1.8
+                    }
+                    break
+            }
+        }
+
+        function startGame() {
+            setInterval(function() {
+                gold += 1;
+                document.getElementById("gold").innerHTML = gold
+                document.getElementById("speed-level").innerHTML = arrowSpeed
+                document.getElementById("fireRate-level").innerHTML = cooldownTimer
+                document.getElementById("damage-level").innerHTML = damage
+                document.getElementById("reqSPD").innerHTML = requiredGoldSPD
+                document.getElementById("reqFR").innerHTML = requiredGoldFR
+                document.getElementById("reqDMG").innerHTML = requiredGoldDMG
+            }, 500)
+            spawner();
+            requestAnimationFrame(animazioni);
+        }
+    
+        function spawnArrow() {
+            const arrowDOM = document.createElement("div");
+            arrowDOM.setAttribute("class", "arrow");
+
+            // Get bow center and angle
+            const bow = document.getElementById("bow");
+            const bowRect = bow.getBoundingClientRect();
+            const centerX = (bowRect.left + bowRect.right) / 2;
+            const centerY = (bowRect.top + bowRect.bottom) / 2;
+
+            const angleDeg = -parseFloat(bow.style.transform.replace("rotate(", "").replace("deg)", "")) || 0;
+            const angleRad = angleDeg * Math.PI / 180;
+
+            // Starting position in percentages (rough estimation)
+            const startX = 5; // near bow on left
+            const startY = (centerY / window.innerHeight) * 100 - 3;
+
+            const velX = arrowSpeed * Math.cos(angleRad);
+            const velY = -arrowSpeed * Math.sin(angleRad); // negative because screen Y increases downward
+
+            const arrow = {
+                posX: startX,
+                posY: startY,
+                velX: velX,
+                velY: velY,
+                rot: -angleRad,
+                element: arrowDOM
+            };
+
+            // Set initial position and append
+            arrowDOM.style.left = arrow.posX + "%";
+            arrowDOM.style.top = arrow.posY + "%";
+            arrowDOM.style.transform = `rotate(${-angleDeg}deg)`;
+            arrowDOM.style.transformOrigin = "center center";
+
+            arrows.push(arrow);
+            document.body.appendChild(arrowDOM);
+        }
+    
+        // Bow rotation
+        document.addEventListener("mousemove", e => {
+            let box = document.querySelector("#bow");
+            let rect = box.getBoundingClientRect();
+            let boxCenter = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            let angle = Math.atan2(e.pageX - boxCenter.x, -(e.pageY - boxCenter.y)) * (180 / Math.PI);
+            box.style.transform = `rotate(${angle-90}deg)`;
+        });
+    
+        document.addEventListener("mousedown", () => {
+            click = true;
+        });
+        document.addEventListener("mouseup", () => {
+            click = false;
+        });
+    
+    </script>
+    
+</body>
+</html>
