@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canvas Grid</title>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: white;
+    }
+	#panel {
+		background: rgba(100,100,100,0.2);
+		border: 2px solid white;
+		border-radius: 25px;
+		position: absolute;
+		padding: 0.5%;
+		height: 15%;
+		width: 10%;
+		top: 2%;
+		left: 1%;
+	}
+	.testo {
+		font-size: 20px;
+		color: white;
+	}
+	#contenitoreScelte {
+		position: absolute;
+		height: 8%;
+		width: 35%;
+		top: 2%;
+		left: 33.2%;
+		text-align: center;
+		margin: auto;
+	}
+	.scelte {
+		width: 120px;
+		height: 50px;
+		font-size: medium;
+		background-color: rgba(100,100,100,0.2);
+		color: white;
+		transition-duration: 0.5s;
+		border-radius: 25px;
+		border: 3px solid white;
+		z-index: 25;
+	}
+	.scelte:hover {
+		background-color: white;
+		color: black;
+		box-shadow: 5px 5px 20px black;
+		width: 175px;
+		height: 60px;
+		font-size: 25px;
+	}
+	.scelte:active {
+		background-color: #a6353b;
+		transform: translateY(15px);
+	}
+
+	#slidecontainer1 {
+		background-color: rgba(100,100,100,0.2);
+		border-radius: 25px;
+		width: 20%;
+		border: 3px solid white;
+		position: absolute;
+		top: 2%;
+		left: 15%;
+		height: 10%;
+		padding: 0.5%;
+		z-index: 20; /* ensures it appears above the canvas */
+		transition-duration: 0.5s;
+	}
+	#slidecontainer1:hover {
+		background-color: rgba(50,10,10,0.9);
+		box-shadow: 5px 5px 20px beige;
+	}
+	#slidecontainer2 {
+		background-color: rgba(100,100,100,0.2);
+		border-radius: 25px;
+		border: 3px solid white;
+		width: 20%;
+		padding: 0.5%;
+		position: absolute;
+		top: 2%;
+		left: 65%;
+		z-index: 20;
+		transition-duration: 0.5s;
+	}
+	
+	#slidecontainer2:hover {
+		background-color: rgba(50,10,10,0.9);
+		box-shadow: 5px 5px 20px beige;
+	}
+
+	.slider {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 95%;
+		height: 25px;
+		background: rgba(100,100,100,0.7);
+		border-radius: 25px;
+		outline: none;
+		opacity: 0.7;
+		transition: opacity .2s;
+	}
+
+	.slider:hover {
+		opacity: 1;
+	}
+
+</style>
+</head>
+<body onload="createGrid()">
+	<canvas id="gridCanvas"></canvas>
+
+	<div id="panel">
+		<h1 class="testo">Alive: <b id="counter"></b></h1>
+		<h1 class="testo">Brush size: <b id="brush">1</b></h1>
+		<h1 class="testo">Speed: <b id="time">100</b>ms</h1>
+		<h1 class="testo">Notes: <b id="scale">Major scale</b></h1>
+	</div>
+	<div id="slidecontainer1">
+		<input type="range" min="1" max="10" value="1" class="slider" id="brushRange">
+		<h3 class="testo">Brush size controller</h3>
+	</div>
+	<div id="slidecontainer2">
+		<input type="range" min="10" max="1000" value="1" class="slider" id="speedRange">
+		<h3 class="testo">Simulation speed controller</h3>
+	</div>
+	<div id="contenitoreScelte">
+		<button class="scelte" onclick="changeDrawingMode()"><b id="mode">Draw</b></button>
+		<button class="scelte" onclick="playAlgorithm()"><b id="playPause">Play</b></button>
+		<button class="scelte" onclick="reset()"><b>Clear</b></button>
+		<button class="scelte" onclick="changeNotes()"><b>Notes</b></button>
+	</div>
+	
+	<script>
+		const cellSize = 10;
+		let brushSize = 1;
+		let canvas, ctx;
+		let gridWidth, gridHeight;
+		let isDrawing = false;
+		let cellCounter = 0;
+		let grid = [];
+		let cells = [];
+		let mode;
+		let playing=false;
+		let playInterval=null;
+		let drawColor = "rgb(255,255,255)";
+		let bgColor = "rgb(0,0,0)";
+		let time = 100;
+		let scale = 0;
+
+		var brushSlider = document.getElementById("brushRange");
+
+		brushSlider.oninput = function() {
+			brushSize = parseInt(this.value);
+			document.getElementById("brush").innerText = brushSize;
+		}
+
+		var speedSlider = document.getElementById("speedRange");
+
+		speedSlider.oninput = function() {
+			time = parseInt(this.value);
+			document.getElementById("time").innerText = time;
+		}
+
+		function reset() {
+			let toBeKilled = [];
+
+			for (let y = 0; y < gridHeight; y++) {
+				for (let x = 0; x < gridWidth; x++) {
+					stopToneForCell(cells[y][x]); // stop tones first
+					if (grid[y][x] === 1) {
+						toBeKilled.push({x: x, y: y}); // mark cells to clear visually
+					}
+					grid[y][x] = 0;
+					cells[y][x] = null;
+				}
+			}
+
+			cellCounter = 0;
+			redrawFromState([], toBeKilled); // pass empty toBeBorn, and the cells to be cleared
+		}
+				
+		const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+		// major scale : [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8, 2]
+		// minor scale : [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2]
+		// [1, 6/5, 3/2, 9/5, 2]
+		const tones = [[1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8, 2], [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2], [1, 9/8, 6/5, 4/3, 3/2, 8/5, 15/8, 2], [1, 9/8, 6/5, 4/3, 3/2, 5/3, 9/5, 2]];
+		const harmonics = [1,1/*, 5/4, 3/2, 15/8*/];
+		const real = new Float32Array(harmonics.length);
+		const imag = new Float32Array(harmonics.length);
+		harmonics.forEach((h, i) => { real[i] = 0; imag[i] = h; });
+		const wave = audioCtx.createPeriodicWave(real, imag);
+
+		function startToneForCell(cell, freq = 440, vol = 0.05, duration = 1.5) {
+			if (!cell) return;
+
+			// Create oscillator and gain
+			const osc = audioCtx.createOscillator();
+			const gainNode = audioCtx.createGain();
+
+			osc.setPeriodicWave(wave);
+			osc.frequency.value = freq;
+
+			const now = audioCtx.currentTime;
+			gainNode.gain.setValueAtTime(0, now);
+			gainNode.gain.linearRampToValueAtTime(vol, now + 0.01); // attack
+			gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration); // decay
+
+			osc.connect(gainNode).connect(audioCtx.destination);
+			osc.start(now);
+			osc.stop(now + duration + 0.05);
+
+			cell.osc = osc;
+			cell.gain = gainNode;
+
+			osc.onended = () => {
+				try {
+					osc.disconnect();
+					gainNode.disconnect();
+				} catch {}
+				cell.osc = null;
+				cell.gain = null;
+			};
+		}
+
+		function stopToneForCell(cell) {
+			if (cell?.osc && cell?.gain) {
+				const now = audioCtx.currentTime;
+
+				cell.gain.gain.cancelScheduledValues(now);
+				cell.gain.gain.setValueAtTime(cell.gain.gain.value, now); // lock current value
+				cell.gain.gain.linearRampToValueAtTime(0, now + 0.05);   // 50ms fade-out
+
+				cell.osc.stop(now + 0.06);
+
+				setTimeout(() => {
+					try {
+						cell.osc.disconnect();
+						cell.gain.disconnect();
+					} catch {}
+					cell.osc = null;
+					cell.gain = null;
+				}, 100);
+			}
+		}
+
+		function createGrid() {
+			mode = 1;
+			canvas = document.getElementById("gridCanvas");
+			ctx = canvas.getContext("2d");
+
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+
+			gridWidth = Math.floor(canvas.width / cellSize);
+			gridHeight = Math.floor(canvas.height / cellSize);
+
+			let oldGrid = grid;
+			let oldWidth = oldGrid.length > 0 ? oldGrid[0].length : 0;
+			let oldHeight = oldGrid.length;
+
+			grid = [];
+			for (let y = 0; y < gridHeight; y++) {
+				grid[y] = [];
+				for (let x = 0; x < gridWidth; x++) {
+					grid[y][x] = (y < oldHeight && x < oldWidth) ? oldGrid[y][x] : 0;
+				}
+			}
+
+			for (let y = 0; y < gridHeight; y++) {
+				cells[y] = [];
+				for (let x = 0; x < gridWidth; x++) {
+					cells[y][x] = null;
+				}
+			}
+
+			cellCounter = grid.flat().reduce((a, b) => a + b, 0);
+
+			drawGrid();
+		}
+
+		function drawGrid() {
+			ctx.fillStyle = bgColor;
+			for (let y = 0; y < gridHeight; y++) {
+				for (let x = 0; x < gridWidth; x++) {
+					ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+				}
+			}
+			
+
+			if (grid.length === 0) {
+				for (let y = 0; y < gridHeight; y++) {
+					grid[y] = [];
+					for (let x = 0; x < gridWidth; x++) {
+						grid[y][x] = 0;
+					}
+				}
+			}
+
+			redrawFromState();
+		}
+
+		function redrawFromState(toBeBorn = [], toBeKilled = []) {
+			// Draw only changed cells
+			ctx.fillStyle = drawColor;
+			for (let cell of toBeBorn) {
+				ctx.fillRect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
+			}
+
+			ctx.fillStyle = bgColor;
+			for (let cell of toBeKilled) {
+				ctx.fillRect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
+			}
+
+			document.getElementById("counter").innerText = cellCounter;
+		}
+
+		function drawPattern(e) {
+			const rect = canvas.getBoundingClientRect();
+			const mouseX = e.clientX - rect.left;
+			const mouseY = e.clientY - rect.top;
+
+			const gridX = Math.floor(mouseX / cellSize);
+			const gridY = Math.floor(mouseY / cellSize);
+
+			if (gridX < 0 || gridX >= gridWidth || gridY < 0 || gridY >= gridHeight) return;
+
+			for (let k = 0; k < brushSize; k++) {
+				for (let l = 0; l < brushSize; l++) {
+					let bx = gridX - Math.floor(brushSize / 2) + k;
+					let by = gridY - Math.floor(brushSize / 2) + l;
+
+					if (bx < 0 || bx >= gridWidth || by < 0 || by >= gridHeight) continue;
+
+					if (mode === 1 && grid[by][bx] === 0) { // Draw
+						grid[by][bx] = 1;
+						cellCounter++;
+					} 
+					else if (mode === 0 && grid[by][bx] === 1) { // Erase
+						grid[by][bx] = 0;
+						cellCounter--;
+					}
+
+					ctx.fillStyle = grid[by][bx] ? drawColor : bgColor;
+					ctx.fillRect(bx * cellSize, by * cellSize, cellSize, cellSize);
+				}
+			}
+
+			document.getElementById("counter").innerText = cellCounter;
+		}
+
+		function changeDrawingMode() {
+			mode = (mode === 1) ? 0 : 1;
+			document.getElementById("mode").innerText = mode === 1 ? "Draw" : "Erase";
+		}
+
+		function stop() {
+			clearTimeout(playInterval)
+		}
+
+		function changeNotes() {
+			switch (scale) {
+				case 0:
+					document.getElementById("scale").innerText = "Minor scale";
+					scale++;
+					break;
+				case 1:
+					document.getElementById("scale").innerText = "Armonic minor scale";
+					scale++;
+					break;
+				case 2:
+					document.getElementById("scale").innerText = "Dorian scale";
+					scale++;
+					break;
+				case 3:
+					document.getElementById("scale").innerText = "Major scale";
+					scale=0;
+					break;
+			}
+		}
+
+		function playAlgorithm() {
+			document.getElementById("playPause").innerText = playing ? "Stop" : "Play";
+			if (playing) {
+				stop();
+				playing = false;
+				return;
+			}
+			playing = true;
+
+			function step() {
+				let toBeBorn = [];
+				let toBeKilled = [];
+				for (let y = 0; y < gridHeight; y++) {
+					for (let x = 0; x < gridWidth; x++) {
+						let alive = 0;
+
+						for (let dy = -1; dy <= 1; dy++) {
+							for (let dx = -1; dx <= 1; dx++) {
+								if (dx === 0 && dy === 0) continue;
+								let ny = y + dy, nx = x + dx;
+								if (ny >= 0 && ny < gridHeight && nx >= 0 && nx < gridWidth) {
+									if (grid[ny][nx]) alive++;
+								}
+							}
+						}
+
+						if (grid[y][x] && (alive < 2 || alive > 3)) {
+							toBeKilled.push({ x, y });
+						}
+						if (!grid[y][x] && alive === 3) {
+							toBeBorn.push({ x, y });
+						}
+					}
+				}
+
+				for (let cell of toBeBorn) {
+					grid[cell.y][cell.x] = 1;
+					cells[cell.y][cell.x] = ({
+						x: cell.x,
+						y: cell.y,
+						alpha: 1,
+						e: grid[cell.y][cell.x]
+					})
+					cellCounter++;
+					startToneForCell(cells[cell.y][cell.x],(220*Math.floor((cell.y+cell.x)/50))*tones[scale][Math.floor(Math.random()*tones.length)],0.005);
+				}
+				for (let cell of toBeKilled) {
+					grid[cell.y][cell.x] = 0;
+
+					let deadCell = cells[cell.y][cell.x]; // keep reference
+					stopToneForCell(deadCell);
+
+					cells[cell.y][cell.x] = null;
+					cellCounter--;
+				}
+
+				/*cells.forEach(() => {
+
+				})*/
+
+				redrawFromState(toBeBorn, toBeKilled);
+
+				if (toBeBorn.length === 0 && toBeKilled.length === 0) {
+					playing = false;
+					return;
+				}
+
+				playInterval = setTimeout(() => requestAnimationFrame(step), time);
+			}
+
+			requestAnimationFrame(step);
+		}
+
+		
+		window.addEventListener("mousedown", (e) => {
+			if (e.target === canvas) drawPattern(e);
+			isDrawing = true;
+		});
+		window.addEventListener("mouseup", (e) => {
+			isDrawing = false;
+		});
+		window.addEventListener("mousemove", (e) => {
+			if (isDrawing && e.target === canvas) drawPattern(e);
+		});
+		window.addEventListener("resize", createGrid);
+	</script>
+</body>
+</html>
