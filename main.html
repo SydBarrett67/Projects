@@ -1,139 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Canvas Grid</title>
-<style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Grid</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
     body {
-        margin: 0;
-        overflow: hidden;
-        background: white;
+      margin: 0;
+      overflow: hidden;
+      background: black;
     }
-	#panel {
-		background: rgba(100,100,100,0.2);
-		border: 2px solid white;
-		border-radius: 25px;
-		position: absolute;
-		padding: 0.5%;
-		height: 15%;
-		width: 10%;
-		top: 2%;
-		left: 1%;
-	}
-	.testo {
-		font-size: 20px;
-		color: white;
-	}
-	#contenitoreScelte {
-		position: absolute;
-		height: 8%;
-		width: 35%;
-		top: 2%;
-		left: 33.2%;
-		text-align: center;
-		margin: auto;
-	}
-	.scelte {
-		width: 120px;
-		height: 50px;
-		font-size: medium;
-		background-color: rgba(100,100,100,0.2);
-		color: white;
-		transition-duration: 0.5s;
-		border-radius: 25px;
-		border: 3px solid white;
-		z-index: 25;
-	}
-	.scelte:hover {
-		background-color: white;
-		color: black;
-		box-shadow: 5px 5px 20px black;
-		width: 175px;
-		height: 60px;
-		font-size: 25px;
-	}
-	.scelte:active {
-		background-color: #a6353b;
-		transform: translateY(15px);
-	}
-
-	#slidecontainer1 {
-		background-color: rgba(100,100,100,0.2);
-		border-radius: 25px;
-		width: 20%;
-		border: 3px solid white;
-		position: absolute;
-		top: 2%;
-		left: 15%;
-		height: 10%;
-		padding: 0.5%;
-		z-index: 20; /* ensures it appears above the canvas */
-		transition-duration: 0.5s;
-	}
-	#slidecontainer1:hover {
-		background-color: rgba(50,10,10,0.9);
-		box-shadow: 5px 5px 20px beige;
-	}
-	#slidecontainer2 {
-		background-color: rgba(100,100,100,0.2);
-		border-radius: 25px;
-		border: 3px solid white;
-		width: 20%;
-		padding: 0.5%;
-		position: absolute;
-		top: 2%;
-		left: 65%;
-		z-index: 20;
-		transition-duration: 0.5s;
-	}
-	
-	#slidecontainer2:hover {
-		background-color: rgba(50,10,10,0.9);
-		box-shadow: 5px 5px 20px beige;
-	}
-
-	.slider {
-		-webkit-appearance: none;
-		appearance: none;
-		width: 95%;
-		height: 25px;
-		background: rgba(100,100,100,0.7);
-		border-radius: 25px;
-		outline: none;
-		opacity: 0.7;
-		transition: opacity .2s;
-	}
-
-	.slider:hover {
-		opacity: 1;
-	}
-
-</style>
+    #gridCanvas {
+      display: block;
+    }
+    .panel-box {
+      background: rgba(100,100,100,0.2);
+      border: 2px solid white;
+      border-radius: 25px;
+      padding: 0.4rem;
+      color: white;
+    }
+    .slider {
+      width: 100%;
+    }
+    .scelte {
+      width: 100%;
+      font-size: 1rem;
+      background-color: rgba(100,100,100,0.2);
+      color: white;
+      border-radius: 25px;
+      border: 3px solid white;
+      transition: all 0.3s;
+    }
+    .scelte:hover {
+      background-color: white;
+      color: black;
+      box-shadow: 5px 5px 20px black;
+    }
+    .scelte:active {
+      background-color: #a6353b;
+      transform: translateY(3px);
+    }
+  </style>
 </head>
 <body onload="createGrid()">
-	<canvas id="gridCanvas"></canvas>
+  <canvas id="gridCanvas"></canvas>
 
-	<div id="panel">
-		<h1 class="testo">Alive: <b id="counter"></b></h1>
-		<h1 class="testo">Brush size: <b id="brush">1</b></h1>
-		<h1 class="testo">Speed: <b id="time">100</b>ms</h1>
-		<h1 class="testo">Notes: <b id="scale">Major scale</b></h1>
-	</div>
-	<div id="slidecontainer1">
-		<input type="range" min="1" max="10" value="1" class="slider" id="brushRange">
-		<h3 class="testo">Brush size controller</h3>
-	</div>
-	<div id="slidecontainer2">
-		<input type="range" min="10" max="1000" value="1" class="slider" id="speedRange">
-		<h3 class="testo">Simulation speed controller</h3>
-	</div>
-	<div id="contenitoreScelte">
-		<button class="scelte" onclick="changeDrawingMode()"><b id="mode">Draw</b></button>
-		<button class="scelte" onclick="playAlgorithm()"><b id="playPause">Play</b></button>
-		<button class="scelte" onclick="reset()"><b>Clear</b></button>
-		<button class="scelte" onclick="changeNotes()"><b>Notes</b></button>
-	</div>
+  <div class="container-fluid position-absolute top-0 start-0 mt-2">
+    <div class="row g-2 justify-content-center">
+      
+      <!-- Panel -->
+      <div class="col-12 col-md-3">
+        <div class="panel-box text-center">
+          <h5>Alive: <b id="counter"></b></h5>
+          <h5>Brush size: <b id="brush">1</b></h5>
+          <h5>Speed: <b id="time">100</b>ms</h5>
+          <h5>Notes: <b id="scale">Major scale</b></h5>
+        </div>
+      </div>
+      
+      <!-- Brush size slider -->
+      <div class="col-12 col-md-3">
+        <div class="panel-box text-center">
+          <input type="range" min="1" max="10" value="1" class="slider" id="brushRange">
+          <h6>Brush size controller</h6>
+        </div>
+      </div>
+      
+      <!-- Speed slider -->
+      <div class="col-12 col-md-3">
+        <div class="panel-box text-center">
+          <input type="range" min="10" max="1000" value="100" class="slider" id="speedRange">
+          <h6>Simulation speed controller</h6>
+        </div>
+      </div>
+
+      <!-- Buttons -->
+      <div class="col-12 col-md-3">
+        <div class="d-grid gap-2">
+          <button class="scelte" onclick="changemode()"><b id="mode">Draw</b></button>
+          <button class="scelte" onclick="playAlgorithm()"><b id="playPause">Play</b></button>
+          <button class="scelte" onclick="reset()">Clear</button>
+          <button class="scelte" onclick="changeNotes()"><b>Notes</b></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
 	
 	<script>
 		const cellSize = 10;
@@ -322,11 +276,11 @@
 
 		function drawPattern(e) {
 			const rect = canvas.getBoundingClientRect();
-			const mouseX = e.clientX - rect.left;
-			const mouseY = e.clientY - rect.top;
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
 
-			const gridX = Math.floor(mouseX / cellSize);
-			const gridY = Math.floor(mouseY / cellSize);
+            const gridX = Math.floor(mouseX / cellSize);
+            const gridY = Math.floor(mouseY / cellSize);
 
 			if (gridX < 0 || gridX >= gridWidth || gridY < 0 || gridY >= gridHeight) return;
 
@@ -353,6 +307,20 @@
 
 			document.getElementById("counter").innerText = cellCounter;
 		}
+
+        function getPointerPosition(e) {
+            let clientX, clientY;
+
+            if (e.touches) { // Touch event
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else { // Mouse event
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            return { clientX, clientY };
+        }
 
 		function changeDrawingMode() {
 			mode = (mode === 1) ? 0 : 1;
@@ -468,6 +436,30 @@
 		window.addEventListener("mousemove", (e) => {
 			if (isDrawing && e.target === canvas) drawPattern(e);
 		});
+        //touch
+        window.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+            e.preventDefault();
+            drawPattern(e.touches[0]);
+            isDrawing = true;
+        } else {
+            
+            isDrawing = false;
+        }
+        }, { passive: false });
+
+        canvas.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 1 && isDrawing) {
+            e.preventDefault();
+            drawPattern(e.touches[0]);
+        }
+        }, { passive: false });
+
+        canvas.addEventListener("touchend", (e) => {
+        if (e.touches.length === 0) {
+            isDrawing = false;
+        }
+        });
 		window.addEventListener("resize", createGrid);
 	</script>
 </body>
