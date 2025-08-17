@@ -18,7 +18,7 @@
       background: rgba(100,100,100,0.2);
       border: 2px solid white;
       border-radius: 25px;
-      padding: 0.4rem;
+      padding: 0.3rem;
       color: white;
     }
     .slider {
@@ -26,7 +26,7 @@
     }
     .scelte {
       width: 100%;
-      font-size: 1rem;
+      font-size: 0.7rem;
       background-color: rgba(100,100,100,0.2);
       color: white;
       border-radius: 25px;
@@ -448,14 +448,14 @@
         }
         }, { passive: false });
 
-        canvas.addEventListener("touchmove", (e) => {
+        window.addEventListener("touchmove", (e) => {
         if (e.touches.length === 1 && isDrawing) {
             e.preventDefault();
             drawPattern(e.touches[0]);
         }
         }, { passive: false });
 
-        canvas.addEventListener("touchend", (e) => {
+        window.addEventListener("touchend", (e) => {
         if (e.touches.length === 0) {
             isDrawing = false;
         }
@@ -464,3 +464,4 @@
 	</script>
 </body>
 </html>
+
